@@ -1,12 +1,11 @@
 import Foundation
 
-/// Single source of truth for project identity and attribution. Deliberately
-/// contains no author/AI identifiers so the public repo can stay anonymous.
+/// Personal fork identity. Upstream notices and protocol attribution are retained.
 enum ProjectInfo {
-    static let appName = "NOOP"
-    static let tagline = "Your strap. Your data. Your machine. Local-first, no cloud."
+    static let appName = "Pulsekeep"
+    static let tagline = "Your rhythm. Your records."
     static let version = "0.1.0"
-    /// Public contact for questions, feedback, bug reports. Baked into every platform.
+    /// Upstream project contact, retained from NOOP.
     static let contactEmail = "thenoopapp@gmail.com"
 
     /// Open-source reverse-engineering this is built on.
