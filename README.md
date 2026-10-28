@@ -9,7 +9,9 @@ records on the device by default.
 
 ## Development status
 
-This is a source development fork. **There is no Pulsekeep IPA release yet.**
+This is a development fork. An **unsigned iPhone development package** is available
+from [iPhone build #1](https://github.com/shajidahmed/pulsekeep/actions/runs/40657243447).
+It requires signing with your own Apple ID before installation.
 WHOOP 5.0 support remains experimental: live heart rate is reported working
 upstream, but complete overnight signals, sleep staging, recovery inputs, and
 background collection still require testing on the actual band and iPhone.
@@ -45,7 +47,9 @@ See [personal setup](docs/PERSONAL_IPHONE.md) and the
 The protocol package suite executed 858 tests with one skipped and zero failures.
 A subsequent gate suite ran 21 tests, and the matching Kotlin suites ran 52;
 all passed. See [validation details and limits](docs/PERSONAL_VALIDATION.md).
-Full Apple app compilation and physical-band testing are still pending.
+The Mac universal build, 2,302 app-target tests (two skipped, zero failures),
+iPhone simulator build, and iPhone device Release packaging have also passed.
+Physical-band testing is still pending.
 
 ## Attribution and license
 
