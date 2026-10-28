@@ -3,7 +3,9 @@
 This branch starts from `ryanbr/noop` commit `2a1de76`. Upstream authorship, license,
 and notices are preserved. It is a personal development snapshot, not a verified
 replacement for the WHOOP service. The hosted fork is [shajidahmed/pulsekeep](https://github.com/shajidahmed/pulsekeep).
-No installable Pulsekeep release has been created yet.
+An unsigned development IPA is available from
+[iPhone package run #1](https://github.com/shajidahmed/pulsekeep/actions/runs/40657243447).
+Apple ID signing and physical-device testing are still required.
 
 ## Changes
 
@@ -31,8 +33,8 @@ Xcode; they are not needed in chat.
 
 ## Remaining work and evidence required
 
-1. Compile and test the full Apple targets with Xcode. Linux package tests do not
-   compile the native iPhone UI or CoreBluetooth integration.
+1. Sign and install the development IPA on the actual iPhone. The cloud Mac and
+   iPhone builds have passed; they do not establish physical-device operation.
 2. Pair with the actual WHOOP 5.0 and record its firmware, negotiated connection,
    and data types received. Keep personal health captures private.
 3. Verify history offload and live collection separately, including background
@@ -55,4 +57,18 @@ readback, and reversibility before enabling new writes.
 ## Validation status
 
 See `PERSONAL_VALIDATION.md` for the checks actually run on this snapshot.
-No physical band, iPhone, or Mac was available for hardware testing.
+Cloud compilation used GitHub Mac runners. The actual band and iPhone have not
+been tested.
+
+## Install the development package later
+
+1. Download the `Pulsekeep-iPhone-unsigned-1` artifact from the successful build
+   linked above, then unzip it on the Mac. It contains `Pulsekeep.ipa` and checksums.
+2. Sign the IPA with the owner's Apple ID using the sideload workflow in
+   [IOS.md](IOS.md). Apple credentials belong in the signing software, not in chat.
+3. Install it on the iPhone. Select WHOOP 5.0/MG in the pairing flow and confirm
+   live heart-rate reception before attempting overnight data collection.
+
+The package includes the widget and omits the Watch app. It uses the distinct
+`com.shajidahmed.pulsekeep.noop` identifier. Compile success does not establish
+that deeper WHOOP 5.0 measurements are decoded correctly.
