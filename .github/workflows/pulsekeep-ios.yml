@@ -1,0 +1,107 @@
+name: Pulsekeep iPhone package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulsekeep-iphone-package
+  cancel-in-progress: false
+
+jobs:
+  iphone:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build Pulsekeep for iPhone
+        run: >-
+          xcodebuild -scheme NOOPiOS -configuration Release
+          -destination 'generic/platform=iOS' -derivedDataPath build/pulsekeep
+          BUNDLE_ID_PREFIX=com.shajidahmed.pulsekeep
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+      - name: Prepare sideload capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="build/pulsekeep/Build/Products/Release-iphoneos/NOOP.app"
+          test -d "$APP"
+          # Sideloaders provision the phone app and widget; omit the embedded Watch app.
+          rm -rf "$APP/Watch"
+          bash Tools/prepare-ios-sideload-app.sh "$APP"
+      - name: Validate and package the iPhone app
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import plistlib
+          import subprocess
+          import zipfile
+          from pathlib import Path
+
+          app = Path('build/pulsekeep/Build/Products/Release-iphoneos/NOOP.app')
+          widget = app / 'PlugIns/NOOPWidgets.appex'
+          def info(bundle):
+              with (bundle / 'Info.plist').open('rb') as stream:
+                  return plistlib.load(stream)
+          ai, wi = info(app), info(widget)
+          assert ai['CFBundleDisplayName'] == 'Pulsekeep'
+          assert ai['CFBundleIdentifier'] == 'com.shajidahmed.pulsekeep.noop'
+          assert wi['CFBundleIdentifier'] == ai['CFBundleIdentifier'] + '.widgets'
+          assert ai['AppGroupIdentifier'] == wi['AppGroupIdentifier']
+          assert 'iPhoneOS' in ai['CFBundleSupportedPlatforms'], 'Simulator build cannot be sideloaded'
+          assert 'bluetooth-central' in ai['UIBackgroundModes']
+          assert ai.get('NSBluetoothAlwaysUsageDescription')
+          assert not (app / 'Watch').exists()
+          for bundle, meta in [(app, ai), (widget, wi)]:
+              executable = bundle / meta['CFBundleExecutable']
+              assert executable.is_file() and executable.stat().st_size > 0
+              archs = subprocess.check_output(['lipo', '-archs', str(executable)], text=True).split()
+              assert 'arm64' in archs, archs
+          subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
+          out = Path('build/pulsekeep-artifact')
+          out.mkdir(parents=True, exist_ok=True)
+          ipa = out / 'Pulsekeep.ipa'
+          with zipfile.ZipFile(ipa, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(app.rglob('*')):
+                  if path.is_file():
+                      archive.write(path, Path('Payload') / app.name / path.relative_to(app))
+          with zipfile.ZipFile(ipa) as archive:
+              assert archive.testzip() is None
+              assert 'Payload/NOOP.app/Info.plist' in archive.namelist()
+              assert 'Payload/NOOP.app/PlugIns/NOOPWidgets.appex/Info.plist' in archive.namelist()
+          digest = hashlib.sha256(ipa.read_bytes()).hexdigest()
+          (out / 'SHA256SUMS.txt').write_text(f'{digest}  Pulsekeep.ipa\n')
+          detail = (
+              f'Pulsekeep iPhone development build\nCommit: {os.environ["BUILD_COMMIT"]}\n'
+              f'Build: {os.environ["BUILD_RUN_URL"]}\n'
+              f'Base version: {ai["CFBundleShortVersionString"]}\n'
+              f'Bundle ID: {ai["CFBundleIdentifier"]}\n'
+              'Not Apple distribution-signed. Sign with your own Apple ID using a sideloader.\n'
+              'Includes the widget; does not include the Watch app.\n'
+              'Compilation and packaging do not validate Bluetooth or physiological accuracy.\n'
+          )
+          (out / 'BUILD-INFO.txt').write_text(detail)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('### Pulsekeep iPhone package\n\n' + detail + '\nSHA-256: `' + digest + '`\n')
+          PY
+      - name: Upload iPhone package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pulsekeep-iPhone-unsigned-${{ github.run_number }}
+          path: build/pulsekeep-artifact/
+          if-no-files-found: error
+          retention-days: 30
